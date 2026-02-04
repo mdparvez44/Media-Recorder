@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const NextConfig = {
   /* config options here */
   reactCompiler: true,
+  experimental:{
+    appDir:true,
+
+  }
 };
 
-export default nextConfig;
+module.exports = NextConfig;

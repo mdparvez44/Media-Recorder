@@ -1,66 +1,98 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+import { useRef, useState } from "react";
+
+export default function Home(){
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const [videoURL, setVideoURL] = useState<string | null>(null);
+  const [isRecording, setIsRecording]=useState(false);
+
+  // start recording
+  const startRecording = async() => {
+    try{
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video:true
+      });
+
+      const audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: true
+      });
+
+       const combinedStream = new MediaStream([
+        ...screenStream.getVideoTracks(), // screen video
+        ...audioStream.getAudioTracks()   // microphone audio
+      ]);
+
+      const mediaRecorder = new MediaRecorder(combinedStream,{
+        mimeType: "video/webm"
+      });
+
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event)=>{
+        if(event.data.size > 0){
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = ()=>{
+
+        const blob = new Blob(recordedChunksRef.current, {
+          type:"video/webm"
+        });
+        
+        const url = URL.createObjectURL(blob);
+        setVideoURL(url);
+        recordedChunksRef.current=[];
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+    }catch(error){
+      console.error("Error starting recording:", error);
+      alert("Permission denied or recording failed");
+    }
+  };
+
+  const stopRecording = () => {
+    if(mediaRecorderRef.current){
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  return(
+    <div style = {{padding: "40px", fontFamily:"Arial"}}>
+      <h1>Screen + Audio Recorder</h1>
+      <div style={{marginBottom:"20px"}}>
+        <button 
+        onClick={startRecording}
+        disabled={isRecording}
+        style={{marginRight:"10px"}}
+        >
+          Start Recording
+        </button>
+        <button
+          onClick={stopRecording}
+          disabled={!isRecording}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Stop Recording
+        </button>
+      </div>
+      {videoURL && (
+        <div>
+          <h3>Preview:</h3>
+          <video
+          src={videoURL}
+          controls
+          style={{width:"600px",border:"1px solid black"}}
+          />
         </div>
-      </main>
+      )}
     </div>
-  );
+  )
+
 }
+
